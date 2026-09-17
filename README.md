@@ -18,7 +18,7 @@ Add this marketplace, then install the skills you want:
 /plugin install video-analysis@hunterlabs-skills
 ```
 
-Works in Claude Code and Cowork — anywhere Claude can run shell commands.
+Works in Claude Code and Cowork, anywhere Claude can run shell commands.
 
 ---
 
@@ -31,28 +31,44 @@ Works in Claude Code and Cowork — anywhere Claude can run shell commands.
 Claude has no native video input. When you hand it a screen recording, it sees a
 handful of stills that have been downscaled to roughly 1568px on the long edge.
 On a 4K capture, your 14px UI text becomes about 5 pixels tall. Claude then
-guesses at it — confidently, and often wrong.
+guesses at it, confidently, and often wrong.
 
 That last part is the real failure. Low quality you can work around. A confident
 wrong answer you can't.
 
-**The three-tier read** is the core idea: one image for the whole timeline, then
-drill in only where it matters.
+#### One image for the whole recording
+
+Instead of reading thirty frames one at a time, the skill tiles them into a
+single contact sheet. One read, and Claude has the entire arc of the session:
+
+![Contact sheet generated from a 24 second screen recording](docs/contact-sheet.png)
+
+That's a real sheet, produced by the command in the skill, from a 24 second
+recording of a dev server starting, a dashboard rendering, an error appearing,
+and the stack trace landing in the terminal.
+
+#### Then it computes the crop instead of guessing
+
+Once Claude knows which moment matters, frame differencing finds the bounding
+box of whatever actually changed and crops to it. No eyeballing coordinates off
+a blurry screenshot:
+
+![Region located automatically by frame differencing and cropped](docs/auto-crop.png)
+
+It found a 1719x721 region at (56,155) on its own, and OCR read the error
+straight out of it.
+
+#### The rest
 
 | Tier | What | Why |
 |---|---|---|
-| 1 | **Contact sheet** — all frames tiled into a single grid | One read shows the entire arc of the recording |
-| 2 | **Full-resolution frame** at the moment that matters | At 1080p this usually OCRs cleanly on its own |
-| 3 | **Crop + 2x lanczos upscale** of the exact region | Rescues text too small to survive downscaling |
-
-**Plus the part I haven't seen elsewhere: it computes the crop instead of
-guessing it.** Frame differencing finds the bounding box of whatever changed
-between two frames — which is almost always the thing you care about — and crops
-straight to it. No eyeballing coordinates off a blurry screenshot.
+| 1 | Contact sheet, all frames in one grid | One read shows the entire recording |
+| 2 | Full-resolution frame at the moment that matters | At 1080p this usually OCRs cleanly |
+| 3 | Crop and 2x lanczos upscale of the exact region | Rescues text too small to survive downscaling |
 
 Also: deduplicated frame extraction with a hard frame budget, timestamps for
 everything, OCR as an independent cross-check, Whisper transcription when
-there's audio — and an explicit list of what it *couldn't* read, instead of a
+there's audio, and an explicit list of what it *couldn't* read instead of a
 plausible guess.
 
 **Requires** `ffmpeg` + `ffprobe`. `tesseract`, `faster-whisper` and
@@ -81,13 +97,13 @@ lavfi.scene_score = 0.001
 
 That's ~150x below the standard threshold. Scene detection returned **0 frames**.
 
-This skill uses `mpdecimate` instead, which returned exactly **4** — one per
+This skill uses `mpdecimate` instead, which returned exactly **4**, one per
 screen, with correct timestamps at 0s, 6s, 12s and 18s.
 
 Every command in these skills is tested before it ships, including the negative
 results. A few other things that testing changed:
 
-- `-q:v` is a **no-op on PNG output** — verified identical byte size with and
+- `-q:v` is a **no-op on PNG output**, verified identical byte size with and
   without it. It's in a lot of frame-extraction snippets anyway.
 - `mpdecimate` **ignores your frame budget**. A 10-minute recording produced 100
   frames, so the skill counts first and thins to target in a second pass.
@@ -105,7 +121,7 @@ Most "Claude can't read my video" problems are fixable at capture time:
 |---|---|
 | Record the window, not the whole desktop | Less to downscale |
 | Zoom the app to 150% first | Text survives the resize |
-| Use 1080p, not 4K | Counterintuitive — 4K downscales *harder* |
+| Use 1080p, not 4K | Counterintuitive, 4K downscales *harder* |
 | Pause 2–3s on anything important | A flash frame can fall between samples |
 | Paste text instead of screenshotting it | A stack trace beats a picture of one |
 
@@ -114,8 +130,8 @@ Most "Claude can't read my video" problems are fixable at capture time:
 ## Contributing
 
 Issues and PRs welcome. If a skill misfires on a real file of yours, open an
-issue with the `ffprobe` output — that's usually enough to diagnose it.
+issue with the `ffprobe` output. That's usually enough to diagnose it.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Use it, fork it, ship it.
+MIT, see [LICENSE](LICENSE). Use it, fork it, ship it.
