@@ -1,0 +1,11 @@
+# scratch
+frames/
+*.mp4
+*.mov
+*.wav
+*.png
+.DS_Store
+Thumbs.db
+
+# Claude Cowork auto-saves delivered files here
+Claude outputs/
